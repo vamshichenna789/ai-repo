@@ -1,0 +1,74 @@
+steps:
+  # Step 1: Set up Cloud SDK
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        gcloud auth configure-docker us-central1-docker.pkg.dev
+
+  # Step 3: Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build', 
+      '-t', 
+      'us-central1-docker.pkg.dev/$_PROJECT_ID/ml-repo/iris-train:latest', 
+      'src/models/train/'
+    ]
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build', 
+      '-t', 
+      'us-central1-docker.pkg.dev/$_PROJECT_ID/ml-repo/iris-serve:latest', 
+      'src/models/serve/'
+    ]
+  # Step 4: Push the Docker image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'push', 
+      'us-central1-docker.pkg.dev/$_PROJECT_ID/ml-repo/iris-train:latest'
+    ]
+ 
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'push', 
+      'us-central1-docker.pkg.dev/$_PROJECT_ID/ml-repo/iris-serve:latest'
+    ]
+
+  # Step 4: Push the Docker image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'push', 
+      'us-central1-docker.pkg.dev/$_PROJECT_ID/ml-repo/iris-train:latest'
+    ]
+
+  # Step 5: Upload Iris data to GCS
+  - name: 'gcr.io/cloud-builders/gsutil'
+    args: [
+      'cp', 
+      'src/data/iris.csv', 
+      'src/data/schema.yaml',
+      'gs://$_PROJECT_ID-ai-landingzone-datasets/'
+    ]
+  # Step 6: Install dependencies and run compile.py
+  - name: 'python:3.7'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        pip install -r src/pipelines/installkfp.txt && python src/pipelines/compile.py
+
+  # Step 7: Install dependencies and run run.py
+  - name: 'python:3.7'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        pip install -r src/pipelines/installkfp.txt && python src/pipelines/run.py
+
+substitutions:
+  _PROJECT_ID: 'cdp-demo-395508'
+
+images:
+  - 'us-central1-docker.pkg.dev/$_PROJECT_ID/ml-repo/iris-train:latest'
